@@ -8,31 +8,42 @@
         #gameContainer { position: relative; flex-grow: 1; display: flex; justify-content: center; align-items: center; padding: 10px; }
         canvas { background: #2d3436; border: 3px solid #636e72; border-radius: 20px; width: 95vw; height: 75vh; }
         .overlay { display: flex; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); border-radius: 20px; color: white; flex-direction: column; justify-content: center; align-items: center; z-index: 10; }
-        h1 { font-size: 2.8rem; margin-bottom: 20px; text-shadow: 0 0 15px #00d2ff; }
+        
+        .logo-container { margin-bottom: 30px; text-align: center; }
+        .logo-text { font-family: 'Arial Black', sans-serif; font-size: 3.5rem; color: #00d2ff; text-transform: uppercase; letter-spacing: 5px; text-shadow: 4px 4px 0px #ff4757, 6px 6px 0px rgba(0,0,0,0.5); margin: 0; padding: 10px; }
+
         .controls { display: flex; justify-content: space-around; width: 100%; padding: 20px 10px; background: #1a1a1a; }
-        button { width: 45%; height: 90px; font-size: 22px; font-weight: bold; background: #0984e3; color: white; border: none; border-radius: 20px; box-shadow: 0 6px 0 #076dbb; transition: transform 0.1s; }
+        button { width: 45%; height: 90px; font-size: 22px; font-weight: bold; background: #0984e3; color: white; border: none; border-radius: 20px; box-shadow: 0 6px 0 #076dbb; transition: transform 0.1s; user-select: none; }
         button:active { transform: translateY(4px); box-shadow: 0 2px 0 #076dbb; }
         #startBtn, #restartBtn, #scoreBtn, #menuBtn, #backBtn { background: #00b894; height: 70px; width: 240px; border-radius: 40px; box-shadow: 0 6px 0 #008f73; margin-top: 10px; }
         #resetScoreBtn { background: #d63031; height: 40px; width: 160px; border-radius: 20px; font-size: 14px; box-shadow: 0 3px 0 #8b1e1e; margin-top: 20px; }
         #rankingList { list-style: none; padding: 0; color: #dfe6e9; font-size: 1.2rem; margin: 15px 0; }
+        
+        .studio-credits { font-size: 0.8rem; color: #636e72; margin-top: 25px; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 
     <div id="gameContainer">
+        <!-- Tela Inicial -->
         <div id="startScreen" class="overlay">
-            <h1 style="color: #00d2ff;">ESCAPE</h1>
+            <div class="logo-container">
+                <div class="logo-text">ESCAPE</div>
+            </div>
             <button id="startBtn">JOGAR AGORA</button>
             <button id="scoreBtn" onclick="showRanking()">RANKING</button>
         </div>
 
+        <!-- Tela de Ranking -->
         <div id="rankingScreen" class="overlay" style="display: none;">
             <h1>TOP 5</h1>
             <ul id="rankingList"></ul>
             <button id="backBtn" onclick="document.getElementById('rankingScreen').style.display='none'">VOLTAR</button>
             <button id="resetScoreBtn" onclick="clearRanking()">ZERAR HISTÓRICO</button>
+            <div class="studio-credits">Feito por L.L. Game Studio BR</div>
         </div>
 
+        <!-- Modal de Confirmação -->
         <div id="confirmModal" class="overlay" style="display: none; z-index: 20;">
             <h2 style="color: #ff9f43;">CUIDADO!</h2>
             <p style="color: white; margin-bottom: 30px;">Deseja realmente apagar os recordes?</p>
@@ -42,6 +53,7 @@
             </div>
         </div>
 
+        <!-- Tela de Game Over -->
         <div id="gameOverScreen" class="overlay" style="display: none;">
             <h1 style="color: #ff4757;">GAME OVER</h1>
             <p id="finalScore" style="font-size: 1.8rem;"></p>
@@ -77,7 +89,7 @@
         const rankingList = document.getElementById("rankingList");
         const finalScoreText = document.getElementById("finalScore");
 
-        let player = { x: 180, y: 600, w: 35, h: 35 }; 
+        let player = { x: 180, y: 600, w: 35, h: 35, speed: 8, dx: 0, immune: false, immuneTimer: null, immuneStartTime: 0, immuneDuration: 5000 }; 
         let enemies = [];
         let score = 0;
         let gameActive = false;
@@ -110,40 +122,99 @@
         function goToMenu() {
             gameOverScreen.style.display = "none";
             startScreen.style.display = "flex";
-            score = 0; enemies = []; player.x = 180; draw();
+            score = 0; enemies = []; player.x = 180; player.dx = 0;
+            player.immune = false; clearTimeout(player.immuneTimer);
+            draw();
         }
 
         document.getElementById('startBtn').addEventListener('touchstart', (e) => { e.preventDefault(); startScreen.style.display = "none"; gameActive = true; playTone(440, 'sine', 0.2); update(); });
-        document.getElementById('leftBtn').addEventListener('touchstart', (e) => { e.preventDefault(); move('left'); });
-        document.getElementById('rightBtn').addEventListener('touchstart', (e) => { e.preventDefault(); move('right'); });
 
-        function move(dir) {
-            if (!gameActive) return;
-            if ("vibrate" in navigator) navigator.vibrate(5);
-            if (dir === 'left' && player.x > 0) player.x -= 40;
-            if (dir === 'right' && player.x < canvas.width - player.w) player.x += 40;
-            playTone(220, 'square', 0.05);
-        }
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+
+        leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); if(gameActive) player.dx = -player.speed; });
+        leftBtn.addEventListener('touchend', (e) => { e.preventDefault(); if(player.dx < 0) player.dx = 0; });
+        rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); if(gameActive) player.dx = player.speed; });
+        rightBtn.addEventListener('touchend', (e) => { e.preventDefault(); if(player.dx > 0) player.dx = 0; });
+
+        leftBtn.addEventListener('mousedown', () => { if(gameActive) player.dx = -player.speed; });
+        leftBtn.addEventListener('mouseup', () => { if(player.dx < 0) player.dx = 0; });
+        rightBtn.addEventListener('mousedown', () => { if(gameActive) player.dx = player.speed; });
+        rightBtn.addEventListener('mouseup', () => { if(player.dx > 0) player.dx = 0; });
 
         function spawnEnemy() {
             let x = Math.random() * (canvas.width - 35);
-            enemies.push({ x: x, y: -35, w: 35, h: 35, speed: 4 + score/500 });
+            let rand = Math.random();
+            let isYellow = rand < 0.05; 
+            let isFastGreen = !isYellow && (rand < 0.15); 
+            
+            let baseSpeed = 4 + score / 500;
+            let speed;
+            let color;
+
+            if (isYellow) {
+                speed = baseSpeed * 0.8;
+                color = "#fdcb6e"; 
+            } else if (isFastGreen) {
+                speed = baseSpeed * 1.8;
+                color = "#00b894"; 
+            } else {
+                speed = baseSpeed;
+                color = "#ff4757"; 
+            }
+
+            enemies.push({ x: x, y: -35, w: 35, h: 35, speed: speed, color: color, type: isYellow ? 'yellow' : (isFastGreen ? 'green' : 'red') });
         }
 
         function update() {
             if (!gameActive) return;
+
+            player.x += player.dx;
+
+            if (player.x < 0) {
+                player.x = 0;
+            } else if (player.x > canvas.width - player.w) {
+                player.x = canvas.width - player.w;
+            }
+
             if (Math.random() < 0.04) spawnEnemy();
+            
             enemies.forEach((e, index) => {
                 e.y += e.speed;
                 if (e.y > canvas.height) { enemies.splice(index, 1); score += 10; playTone(660, 'sine', 0.1); }
-                if (e.x < player.x + player.w && e.x + e.w > player.x && e.y < player.y + player.h && e.y + e.h > player.y) gameOver();
+                
+                if (e.x < player.x + player.w && e.x + e.w > player.x && e.y < player.y + player.h && e.y + e.h > player.y) {
+                    if (e.type === 'yellow') {
+                        playTone(880, 'sine', 0.2);
+                        player.immune = true;
+                        player.immuneStartTime = Date.now();
+                        clearTimeout(player.immuneTimer);
+                        player.immuneTimer = setTimeout(() => {
+                            player.immune = false;
+                        }, player.immuneDuration); 
+                        enemies.splice(index, 1);
+                    } else if (e.type === 'red') {
+                        if (player.immune) {
+                            enemies.splice(index, 1);
+                            playTone(523.25, 'triangle', 0.1);
+                        } else {
+                            gameOver();
+                        }
+                    } else if (e.type === 'green') {
+                        gameOver();
+                    }
+                }
             });
+            
             draw();
             requestAnimationFrame(update);
         }
 
         function gameOver() {
             gameActive = false;
+            player.dx = 0;
+            player.immune = false;
+            clearTimeout(player.immuneTimer);
             if ("vibrate" in navigator) navigator.vibrate(300);
             playTone(150, 'sawtooth', 0.5);
             saveScore(score);
@@ -152,7 +223,8 @@
         }
 
         function resetGame() {
-            score = 0; enemies = []; player.x = 180;
+            score = 0; enemies = []; player.x = 180; player.dx = 0;
+            player.immune = false; clearTimeout(player.immuneTimer);
             gameOverScreen.style.display = "none";
             gameActive = true; update();
         }
@@ -167,10 +239,28 @@
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawRoundedRect(player.x, player.y, player.w, player.h, 8, "#00d2ff");
-            enemies.forEach(e => drawRoundedRect(e.x, e.y, e.w, e.h, 8, "#ff4757"));
-            ctx.fillStyle = "white"; ctx.font = "bold 25px Arial";
+            
+            let playerColor = player.immune ? "#fdcb6e" : "#00d2ff";
+            drawRoundedRect(player.x, player.y, player.w, player.h, 8, playerColor);
+            
+            enemies.forEach(e => drawRoundedRect(e.x, e.y, e.w, e.h, 8, e.color));
+            
+            // Placar principal na tela (Esquerda)
+            ctx.fillStyle = "white"; 
+            ctx.font = "bold 25px Arial";
+            ctx.textAlign = "left";
             ctx.fillText("Score: " + score, 20, 45);
+
+            // Cronômetro do Poder Amarelo (Direita - aparece apenas se imune)
+            if (player.immune) {
+                let elapsedTime = Date.now() - player.immuneStartTime;
+                let timeLeft = Math.max(0, Math.ceil((player.immuneDuration - elapsedTime) / 1000));
+                
+                ctx.fillStyle = "#fdcb6e";
+                ctx.font = "bold 22px Arial";
+                ctx.textAlign = "right";
+                ctx.fillText("Poder: " + timeLeft + "s", canvas.width - 20, 45);
+            }
         }
         draw();
     </script>

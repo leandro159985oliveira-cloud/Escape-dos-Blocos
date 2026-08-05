@@ -93,9 +93,6 @@
         let enemies = [];
         let score = 0;
         let gameActive = false;
-        
-        // Variável para contar as derrotas
-        let defeatCount = 0;
 
         function getScores() { return JSON.parse(localStorage.getItem("bestScores") || "[]"); }
         function saveScore(newScore) {
@@ -221,14 +218,6 @@
             if ("vibrate" in navigator) navigator.vibrate(300);
             playTone(150, 'sawtooth', 0.5);
             saveScore(score);
-            
-            // Incrementa o contador de derrotas
-            defeatCount++;
-            if (defeatCount >= 2) {
-                window.location.href = "https://mostrar_anuncio";
-                defeatCount = 0;
-            }
-
             finalScoreText.innerText = "Sua pontuação: " + score;
             gameOverScreen.style.display = "flex";
         }
@@ -256,11 +245,13 @@
             
             enemies.forEach(e => drawRoundedRect(e.x, e.y, e.w, e.h, 8, e.color));
             
+            // Placar principal na tela (Esquerda)
             ctx.fillStyle = "white"; 
             ctx.font = "bold 25px Arial";
             ctx.textAlign = "left";
             ctx.fillText("Score: " + score, 20, 45);
 
+            // Cronômetro do Poder Amarelo (Direita - aparece apenas se imune)
             if (player.immune) {
                 let elapsedTime = Date.now() - player.immuneStartTime;
                 let timeLeft = Math.max(0, Math.ceil((player.immuneDuration - elapsedTime) / 1000));

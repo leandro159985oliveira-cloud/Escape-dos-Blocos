@@ -218,8 +218,13 @@
             if ("vibrate" in navigator) navigator.vibrate(300);
             playTone(150, 'sawtooth', 0.5);
             saveScore(score);
+
             finalScoreText.innerText = "Sua pontuação: " + score;
             gameOverScreen.style.display = "flex";
+
+            if (window.AppInventor) {
+                window.AppInventor.setWebViewString("gameover");
+            }
         }
 
         function resetGame() {
@@ -245,13 +250,11 @@
             
             enemies.forEach(e => drawRoundedRect(e.x, e.y, e.w, e.h, 8, e.color));
             
-            // Placar principal na tela (Esquerda)
             ctx.fillStyle = "white"; 
             ctx.font = "bold 25px Arial";
             ctx.textAlign = "left";
             ctx.fillText("Score: " + score, 20, 45);
 
-            // Cronômetro do Poder Amarelo (Direita - aparece apenas se imune)
             if (player.immune) {
                 let elapsedTime = Date.now() - player.immuneStartTime;
                 let timeLeft = Math.max(0, Math.ceil((player.immuneDuration - elapsedTime) / 1000));
